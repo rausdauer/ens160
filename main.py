@@ -29,13 +29,6 @@ from ens160 import ENS160, VALIDITY_WARMUP, VALIDITY_STARTUP
 from aht2x import AHT2x
 from ssd1306 import SSD1306_I2C
 
-"""
-ENS160 example for Raspberry Pi Pico / Pico W
-...existing code...
-"""
-
-
-
 # ── WLAN connection ──────────────────────────────────────────────────────────
 def connect_wifi(ssid, password, timeout):
     wlan = network.WLAN(network.STA_IF)
@@ -113,8 +106,12 @@ for oled_addr in (0x3C, 0x3D):
             oled.fill(0)
             oled.text("ENS160 monitor", 0, 0)
             oled.text("Starting...", 0, 12)
+            if wlan is not None:
+                oled.text("{}".format(wlan.ifconfig()[0]), 0, 24)
+            else:
+                oled.text("Wi-Fi failed", 0, 24)
             oled.show()
-            time.sleep(2)
+            time.sleep(5)
             break
         except Exception as exc:
 
