@@ -20,6 +20,7 @@ those values for ENS160 compensation automatically.
 """
 
 from machine import I2C, Pin
+import machine
 import network
 import time
 import socket
@@ -33,19 +34,77 @@ from ssd1306 import SSD1306_I2C
 def connect_wifi(ssid, password, timeout):
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+    wlan.config(pm=0xa11140)
+    
+    # Optional: Power management can sometimes interfere with AP connections
+    # wlan.config(pm=0xa11140) 
+
     if not wlan.isconnected():
-        print("Connecting to Wi-Fi '{}'...".format(ssid))
+        print(f"Connecting to {ssid}...")
         wlan.connect(ssid, password)
+        
         deadline = time.time() + timeout
-        while not wlan.isconnected():
-            if time.time() > deadline:
-                print("Wi-Fi connection timed out!")
+        while time.time() < deadline:
+            status = wlan.status()
+            # 3 = CYW43_LINK_UP (Connected)
+            if status == 3 or wlan.isconnected():
+                break
+            
+            # Status < 0 indicates a failure (handshake, auth, etc)
+            if status < 0:
+                print(f"Connection failed with status: {status}")
                 return None
-            time.sleep_ms(200)
+                
+            time.sleep(1) # Increase sleep to 1s to let background tasks run
+            
+        if not wlan.isconnected():
+            print("Wi-Fi connection timed out!")
+            return None
+            
     ip = wlan.ifconfig()[0]
     print("Wi-Fi connected! IP:", ip)
     return wlan
 
+def get_wlan():
+    """Ensures the WLAN object exists and is active."""
+    wlan = network.WLAN(network.STA_IF)
+    if not wlan.active():
+        wlan.active(True)
+    return wlan
+
+def ensure_connection(ssid, password, max_retries=5):
+    wlan = get_wlan()
+    
+    retry_count = 0
+    while not wlan.isconnected() and retry_count < max_retries:
+        print(f"Connection attempt {retry_count + 1}/{max_retries}...")
+        wlan.connect(ssid, password)
+        
+        # Wait for status to change
+        timeout = 15
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            status = wlan.status()
+            if status == 3: # STAT_GOT_IP / Connected
+                print("Connected! IP:", wlan.ifconfig()[0])
+                return wlan
+            if status < 0: # Failure (like your Status -1)
+                break
+            time.sleep(1)
+        
+        retry_count += 1
+        print("Attempt failed. Waiting to retry...")
+        time.sleep(2) # Give the radio a moment to breathe
+    
+    if not wlan.isconnected():
+        print("All connection retries failed.")
+        return None
+    return wlan
+
+if machine.reset_cause() != 4:
+    # print("Performing soft reset to clear network stack...")
+    # machine.soft_reset()
+    pass
 wlan = connect_wifi(secrets.WIFI_SSID, secrets.WIFI_PASSWORD, secrets.WIFI_TIMEOUT)
 
 # ── Web Server setup ────────────────────────────────────────────────────────
@@ -161,7 +220,12 @@ def update_oled(aqi, tvoc, eco2, validity_name, temp_c, rh_pct, aqi_name):
 while True:
     temp_c = None
     rh_pct = None
-
+    # If wlan is None or connection dropped, try to fix it
+    if wlan is None or not wlan.isconnected():
+        wlan = ensure_connection(secrets.WIFI_SSID, secrets.WIFI_PASSWORD)
+    if wlan and wlan.isconnected():
+        # Place your network code here
+        pass
     if aht is not None:
         try:
             temp_c, rh_pct = aht.read()
