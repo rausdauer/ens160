@@ -249,18 +249,21 @@ while True:
         aqi = data["aqi"]
         tvoc = data["tvoc"]
         eco2 = data["eco2"]
+        sensor_name = "ens160"
+        if (secrets.SENSORNAME is not None) and (len(secrets.SENSORNAME) > 0):
+            sensor_name = secrets.SENSORNAME
         update_oled(aqi, tvoc, eco2, sensor.validity_name,temp_c, rh_pct, sensor.aqi_name)
 
         if temp_c is not None and rh_pct is not None:
             print(
-                "T: {:.1f} C  |  RH: {:.1f} %  |  AQI: {:d} ({:s})  |  TVOC: {:4d} ppb  |  eCO2: {:4d} ppm  |  Status: {:s}".format(
-                    temp_c, rh_pct, aqi, sensor.aqi_name, tvoc, eco2, sensor.validity_name
+                "T: {:.1f} C  |  RH: {:.1f} %  |  AQI: {:d} ({:s})  |  TVOC: {:4d} ppb  |  eCO2: {:4d} ppm  |  Status: {:s}  |  Sensorname: {:s}".format(
+                    temp_c, rh_pct, aqi, sensor.aqi_name, tvoc, eco2, sensor.validity_name, sensor_name
                 )
             )
         else:
             print(
-                "AQI: {:d} ({:s})  |  TVOC: {:4d} ppb  |  eCO2: {:4d} ppm  |  Status: {:s}".format(
-                    aqi, sensor.aqi_name, tvoc, eco2, sensor.validity_name
+                "AQI: {:d} ({:s})  |  TVOC: {:4d} ppb  |  eCO2: {:4d} ppm  |  Status: {:s}  |  Sensor: {:s} ".format(
+                    aqi, sensor.aqi_name, tvoc, eco2, sensor.validity_name, sensor_name
                 )
             )
         
@@ -271,6 +274,7 @@ while True:
         latest_data["temp_c"] = temp_c
         latest_data["rh_pct"] = rh_pct
         latest_data["status"] = sensor.validity_name
+        latest_data["sensorname"] = sensor_name
     else:
         if oled is not None:
             oled.fill(0)
